@@ -4,6 +4,10 @@ let customers = JSON.parse(localStorage.getItem('customers')) || [];
 let directSales = JSON.parse(localStorage.getItem('directSales')) || [];
 let currentCustomerIndex = -1; 
 
+function triggerSync() {
+    if(window.syncDataToFirebase) window.syncDataToFirebase();
+}
+
 // دالة التبديل بين التبويبات
 function switchTab(tabId, element) {
     document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
@@ -92,6 +96,7 @@ function saveItem() {
     }
 
     localStorage.setItem('inventory', JSON.stringify(inventory));
+    triggerSync();
     closeModal('modal-add-item');
     renderInventory();
     
@@ -116,6 +121,7 @@ function deleteItem(index) {
     if (confirm('هل أنت متأكد من الحذف؟')) {
         inventory.splice(index, 1);
         localStorage.setItem('inventory', JSON.stringify(inventory));
+        triggerSync();
         renderInventory();
     }
 }
@@ -175,6 +181,7 @@ function saveCustomer() {
     }
 
     localStorage.setItem('customers', JSON.stringify(customers));
+    triggerSync();
     closeModal('modal-add-customer');
     renderCustomers();
     
@@ -199,6 +206,7 @@ function deleteCustomer(index) {
     if (confirm('هل أنت متأكد من الحذف؟')) {
         customers.splice(index, 1);
         localStorage.setItem('customers', JSON.stringify(customers));
+        triggerSync();
         renderCustomers();
     }
 }
@@ -375,6 +383,7 @@ function saveDirectSale() {
     
     localStorage.setItem('statistics', JSON.stringify(stats));
     localStorage.setItem('inventory', JSON.stringify(inventory));
+    triggerSync();
     
     renderInventory();
     renderSales();
@@ -427,6 +436,7 @@ function deleteDirectSale(index) {
     if(confirm('هل أنت متأكد من حذف هذه المبيعات؟')) {
         directSales.splice(index, 1);
         localStorage.setItem('directSales', JSON.stringify(directSales));
+        triggerSync();
         renderSales();
     }
 }
@@ -512,6 +522,7 @@ function saveDebt() {
 
     localStorage.setItem('inventory', JSON.stringify(inventory));
     localStorage.setItem('customers', JSON.stringify(customers));
+    triggerSync();
     
     renderInventory();
     renderCustomers();
@@ -547,6 +558,7 @@ function savePayment() {
     });
 
     localStorage.setItem('customers', JSON.stringify(customers));
+    triggerSync();
     renderCustomers();
     
     closeModal('modal-payment');
@@ -668,6 +680,7 @@ function importData(event) {
             if(data.customers) localStorage.setItem('customers', JSON.stringify(data.customers));
             if(data.statistics) localStorage.setItem('statistics', JSON.stringify(data.statistics));
             if(data.directSales) localStorage.setItem('directSales', JSON.stringify(data.directSales));
+            triggerSync();
             alert('تم استعادة النسخة بنجاح! سيتم تحديث الصفحة.');
             location.reload();
         } catch(err) {
@@ -683,3 +696,25 @@ window.onload = () => {
     renderCustomers();
     renderSales();
 };
+
+// --- PWA Setup ---
+window.deferredPrompt = null;
+window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    window.deferredPrompt = e;
+});
+
+window.installApp = async () => {
+    if (window.deferredPrompt) {
+        window.deferredPrompt.prompt();
+        const { outcome } = await window.deferredPrompt.userChoice;
+        window.deferredPrompt = null;
+        closeModal('install-modal');
+    }
+};
+
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+        navigator.serviceWorker.register('sw.js').catch(err => console.log('SW registration failed:', err));
+    });
+}
