@@ -699,9 +699,13 @@ window.onload = () => {
 
 // --- PWA Setup ---
 window.deferredPrompt = null;
+
 window.addEventListener('beforeinstallprompt', (e) => {
     e.preventDefault();
     window.deferredPrompt = e;
+    if (document.getElementById('login-modal') && document.getElementById('login-modal').style.display === 'none') {
+        openModal('install-modal');
+    }
 });
 
 window.installApp = async () => {
