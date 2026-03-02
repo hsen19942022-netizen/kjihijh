@@ -3,7 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>مجمع احمد فرحان المتميز</title>
+    <title>محل تبارك الرحمن البيع البذور</title>
+    <link rel="manifest" href="manifest.json">
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
@@ -12,7 +13,7 @@
     <datalist id="inventory-options"></datalist>
 
     <header>
-        <h1>مجمع احمد فرحان المتميز</h1>
+        <h1>محل تبارك الرحمن البيع البذور</h1>
     </header>
 
     <main id="app-content">
@@ -202,6 +203,115 @@
         </div>
     </div>
 
+    <div id="login-modal" class="modal" style="display: flex; background: var(--bg-color); z-index: 9999;">
+        <div class="modal-content" style="text-align: center; box-shadow: 0 4px 15px rgba(0,0,0,0.2);">
+            <h2 style="margin-bottom: 20px; color: var(--primary-color);">تسجيل الدخول</h2>
+            <div id="google-login-section">
+                <button class="btn-primary" onclick="window.signInWithGoogle()" style="width: 100%; margin-bottom: 10px;">
+                    <i class="fab fa-google"></i> تسجيل الدخول بواسطة جوجل
+                </button>
+            </div>
+            <div id="pin-section" style="display: none;">
+                <input type="password" id="pin-input" placeholder="الرمز السري" style="text-align: center; letter-spacing: 5px; font-size: 1.2rem;">
+                <button class="btn-success" onclick="window.verifyPin()" style="width: 100%; margin-top: 10px;">دخول</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="install-modal" class="modal">
+        <div class="modal-content" style="text-align: center;">
+            <h3 style="margin-bottom: 15px;">تثبيت التطبيق</h3>
+            <p style="margin-bottom: 20px;">هل تريد تثبيت تطبيق "سجل العام" للعمل بدون إنترنت؟</p>
+            <div class="modal-actions">
+                <button class="btn-success" onclick="window.installApp()">تثبيت</button>
+                <button class="btn-danger" onclick="closeModal('install-modal')">لاحقاً</button>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/12.10.0/firebase-app.js";
+        import { getAuth, signInWithPopup, GoogleAuthProvider } from "https://www.gstatic.com/firebasejs/12.10.0/firebase-auth.js";
+        import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/12.10.0/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyAXZDaCDWOU3ZH_5os7KIALvzm9BLyJTVM",
+            authDomain: "rtrl-46c32.firebaseapp.com",
+            projectId: "rtrl-46c32",
+            storageBucket: "rtrl-46c32.firebasestorage.app",
+            messagingSenderId: "821990404266",
+            appId: "1:821990404266:web:c35c3e3ea6c2cf088560d3"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const provider = new GoogleAuthProvider();
+        const db = getFirestore(app);
+
+        window.signInWithGoogle = () => {
+            signInWithPopup(auth, provider).then((result) => {
+                document.getElementById('google-login-section').style.display = 'none';
+                document.getElementById('pin-section').style.display = 'block';
+            }).catch((error) => {
+                alert("خطأ في تسجيل الدخول: " + error.message);
+            });
+        };
+
+        window.verifyPin = () => {
+            const pin = document.getElementById('pin-input').value;
+            if (pin === "1001") {
+                document.getElementById('login-modal').style.display = 'none';
+                
+                window.syncDataToFirebase = async () => {
+                    if(navigator.onLine) {
+                        try {
+                            const dataToSync = {
+                                inventory: JSON.parse(localStorage.getItem('inventory')) || [],
+                                customers: JSON.parse(localStorage.getItem('customers')) || [],
+                                directSales: JSON.parse(localStorage.getItem('directSales')) || [],
+                                statistics: JSON.parse(localStorage.getItem('statistics')) || []
+                            };
+                            await setDoc(doc(db, "appData", "main"), dataToSync);
+                        } catch(e) { console.error("Error syncing:", e); }
+                    }
+                };
+
+                window.syncDataFromFirebase = async () => {
+                    if(navigator.onLine) {
+                        try {
+                            const docSnap = await getDoc(doc(db, "appData", "main"));
+                            if (docSnap.exists()) {
+                                const data = docSnap.data();
+                                if(data.inventory && data.inventory.length > 0) localStorage.setItem('inventory', JSON.stringify(data.inventory));
+                                if(data.customers && data.customers.length > 0) localStorage.setItem('customers', JSON.stringify(data.customers));
+                                if(data.directSales && data.directSales.length > 0) localStorage.setItem('directSales', JSON.stringify(data.directSales));
+                                if(data.statistics && data.statistics.length > 0) localStorage.setItem('statistics', JSON.stringify(data.statistics));
+                                window.location.reload();
+                            }
+                        } catch(e) { console.error("Error fetching:", e); }
+                    }
+                };
+
+                if(!localStorage.getItem('inventory') && navigator.onLine) {
+                    window.syncDataFromFirebase();
+                } else {
+                    window.syncDataToFirebase();
+                }
+
+                if (window.deferredPrompt) {
+                    openModal('install-modal');
+                }
+            } else {
+                alert("رمز غير صحيح");
+            }
+        };
+
+        window.addEventListener('online', () => {
+            if (window.syncDataToFirebase && document.getElementById('login-modal').style.display === 'none') {
+                window.syncDataToFirebase();
+            }
+        });
+    </script>
     <script src="app.js"></script>
 </body>
 </html>
